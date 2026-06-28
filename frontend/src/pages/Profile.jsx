@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import Heatmap from '../components/Heatmap';
+import { useAuth } from '../context/AuthContext';
+import CompareModal from '../components/CompareModal';
 
 const Profile = () => {
   const { username } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [profileData, setProfileData] = useState(null);
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isChallenging, setIsChallenging] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -51,6 +57,23 @@ const Profile = () => {
 
   const { stats } = profileData;
 
+  const handleSparringChallenge = async () => {
+    try {
+      setIsChallenging(true);
+      const res = await api.post('/api/sparring/create', {
+        userId: user?.id,
+        username: user?.user_metadata?.username
+      });
+      // Pass the generated questionId via query string
+      navigate(`/sparring/${res.data.roomId}?questionId=${res.data.questionId}`);
+    } catch (err) {
+      console.error('Failed to create sparring room', err);
+      alert('Failed to start challenge.');
+    } finally {
+      setIsChallenging(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-4 sm:px-6 lg:px-8 mt-10 mb-20 font-sans">
       
@@ -66,11 +89,18 @@ const Profile = () => {
             <p className="text-blue-400 font-medium tracking-wide uppercase text-sm">Competitive Programmer</p>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
-            <button className="px-5 py-2 rounded font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-blue-500/50 transition-all transform hover:-translate-y-0.5">
+            <button 
+              onClick={() => setIsCompareModalOpen(true)}
+              className="px-5 py-2 rounded font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-blue-500/50 transition-all transform hover:-translate-y-0.5"
+            >
               Compare Profile
             </button>
-            <button className="px-5 py-2 rounded font-bold bg-red-600 hover:bg-red-500 text-white shadow-lg hover:shadow-red-500/50 transition-all transform hover:-translate-y-0.5">
-              Challenge to Sparring
+            <button 
+              onClick={handleSparringChallenge}
+              disabled={isChallenging}
+              className="px-5 py-2 rounded font-bold bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white shadow-lg hover:shadow-red-500/50 transition-all transform hover:-translate-y-0.5"
+            >
+              {isChallenging ? 'Creating Match...' : 'Challenge to Sparring'}
             </button>
           </div>
         </div>
@@ -109,6 +139,11 @@ const Profile = () => {
       {/* Dynamic Heatmap */}
       <Heatmap data={heatmapData} />
 
+      <CompareModal 
+        isOpen={isCompareModalOpen} 
+        onClose={() => setIsCompareModalOpen(false)} 
+        currentUserData={profileData} 
+      />
     </div>
   );
 };

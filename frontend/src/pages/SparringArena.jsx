@@ -1,18 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import Pusher from 'pusher-js';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import Editor from '@monaco-editor/react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
-const DEFAULT_CODE = 'function solve() {\n  // Write your code here\n}\n';
+const DEFAULT_CODE = {
+  javascript: 'function solve() {\n  // Write your code here\n}\n',
+  python: 'def solve():\n    # Write your code here\n    pass\n',
+  cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    return 0;\n}\n',
+  java: 'public class Main {\n    public static void main(String[] args) {\n        // Write your code here\n    }\n}\n'
+};
 
 const SparringArena = () => {
   const { roomId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [question, setQuestion] = useState(null);
-  const [sourceCode, setSourceCode] = useState(DEFAULT_CODE);
+  const [language, setLanguage] = useState('javascript');
+  const [sourceCode, setSourceCode] = useState(DEFAULT_CODE['javascript']);
   
   const [isOpponentPresent, setIsOpponentPresent] = useState(false);
   const [opponentStatus, setOpponentStatus] = useState('Waiting for opponent to join...');
@@ -22,18 +30,26 @@ const SparringArena = () => {
   const [matchStatus, setMatchStatus] = useState('lobby'); // lobby, active, won, lost, draw
   const [executionResult, setExecutionResult] = useState(null);
   
-  const pusherRef = useRef(null);
-  const channelRef = useRef(null);
+  const socketRef = useRef(null);
   const syncTimeoutRef = useRef(null);
 
-  // Initialize Match & Pusher
+  // Initialize Match & Socket.io
   useEffect(() => {
-    // Fetch a question (In a real app, this would be tied to the roomId in the DB)
+    const questionId = searchParams.get('questionId');
+
     const fetchQuestion = async () => {
       try {
-        const response = await api.get('/api/questions');
-        if (response.data && response.data.length > 0) {
-          setQuestion(response.data[0]); // Pick first for now
+        if (!questionId) {
+          // Fallback if no questionId provided (e.g. legacy or dev join without ID)
+          const response = await api.get('/api/questions');
+          if (response.data && response.data.length > 0) {
+            setQuestion(response.data[0]); 
+            setSourceCode(response.data[0].starter_code?.['javascript'] || DEFAULT_CODE['javascript']);
+          }
+        } else {
+          const response = await api.get(`/api/questions/${questionId}`);
+          setQuestion(response.data);
+          setSourceCode(response.data.starter_code?.['javascript'] || DEFAULT_CODE['javascript']);
         }
       } catch (error) {
         console.error('Failed to fetch question');
@@ -41,25 +57,45 @@ const SparringArena = () => {
     };
     fetchQuestion();
 
-    // Initialize Pusher
-    pusherRef.current = new Pusher(import.meta.env.VITE_PUSHER_KEY || 'dummy_key', {
-      cluster: import.meta.env.VITE_PUSHER_CLUSTER || 'mt1',
+    // Initialize Socket.io Connection
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    socketRef.current = io(backendUrl);
+    const socket = socketRef.current;
+
+    // Join Room
+    socket.emit('join-room', {
+      roomId,
+      userId: user?.id,
+      username: user?.user_metadata?.username || 'Guest'
     });
 
-    const channel = pusherRef.current.subscribe(`room-${roomId}`);
-    channelRef.current = channel;
-
-    // Listen for Player 2 joining
-    channel.bind('player-joined', (data) => {
+    // Listen for Player 2 joining (radar update)
+    socket.on('player-joined', (data) => {
       if (data.userId !== user?.id) {
-        setIsOpponentPresent(true);
-        setMatchStatus('active');
         setOpponentStatus(`${data.username || 'Opponent'} is ready!`);
       }
     });
 
+    // Listen for Match Start (when both players are in the room)
+    socket.on('match-started', (data) => {
+      setIsOpponentPresent(true);
+      setMatchStatus('active');
+      
+      // Determine opponent's username if available
+      if (data.players) {
+        const opponent = data.players.find(p => p.userId !== user?.id);
+        if (opponent) {
+          setOpponentStatus(`${opponent.username || 'Opponent'} is ready!`);
+        } else {
+          setOpponentStatus(`Opponent is ready!`);
+        }
+      } else {
+        setOpponentStatus(`Opponent is ready!`);
+      }
+    });
+
     // Listen for Opponent Code Sync
-    channel.bind('code-update', (data) => {
+    socket.on('code-update', (data) => {
       if (data.userId !== user?.id) {
         setOpponentCodeLength(data.sourceCode.length);
         setOpponentStatus('Opponent typing...');
@@ -70,7 +106,7 @@ const SparringArena = () => {
     });
 
     // Listen for Opponent Submission Sync
-    channel.bind('submission-status', (data) => {
+    socket.on('submission-status', (data) => {
       if (data.userId !== user?.id) {
         if (data.status === 'RUNNING') {
           setOpponentStatus('Opponent is running test cases... ⏳');
@@ -83,11 +119,10 @@ const SparringArena = () => {
       }
     });
 
-    // Cleanup: Unsubscribe to prevent memory leaks and free-tier drain
+    // Cleanup: Disconnect socket on unmount
     return () => {
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(`room-${roomId}`);
-        pusherRef.current.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
     };
   }, [roomId, user?.id]);
@@ -120,17 +155,21 @@ const SparringArena = () => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     // Throttle to sync every 2 seconds
-    syncTimeoutRef.current = setTimeout(async () => {
-      try {
-        await api.post('/api/sparring/sync', {
+    syncTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current) {
+        socketRef.current.emit('code-sync', {
           roomId,
           userId: user?.id,
           sourceCode: newCode
         });
-      } catch (err) {
-        console.error('Failed to sync code');
       }
     }, 2000);
+  };
+
+  const handleLanguageChange = (e) => {
+    const newLang = e.target.value;
+    setLanguage(newLang);
+    setSourceCode(question?.starter_code?.[newLang] || DEFAULT_CODE[newLang]);
   };
 
   const handleSubmit = async () => {
@@ -139,38 +178,44 @@ const SparringArena = () => {
     setExecutionResult({ status: 'RUNNING', message: 'Running on execution engine...' });
     
     // Broadcast running status
-    await api.post('/api/sparring/submit', {
-      roomId,
-      userId: user?.id,
-      status: 'RUNNING',
-      message: 'Opponent is running tests'
-    });
+    if (socketRef.current) {
+      socketRef.current.emit('submit-sync', {
+        roomId,
+        userId: user?.id,
+        status: 'RUNNING',
+        message: 'Opponent is running tests'
+      });
+    }
 
     try {
       const response = await api.post('/api/code/submit', {
         userId: user?.id,
         questionId: question.id,
         sourceCode: sourceCode,
-        language: 'javascript'
+        language: language
       });
       
       const { status } = response.data;
       setExecutionResult(response.data);
       
       // Broadcast final status
-      await api.post('/api/sparring/submit', {
-        roomId,
-        userId: user?.id,
-        status: status,
-        message: status === 'Accepted' ? 'Opponent solved it!' : 'Opponent failed.'
-      });
+      if (socketRef.current) {
+        socketRef.current.emit('submit-sync', {
+          roomId,
+          userId: user?.id,
+          status: status,
+          message: status === 'Accepted' ? 'Opponent solved it!' : 'Opponent failed.'
+        });
+      }
 
       if (status === 'Accepted') {
         setMatchStatus('won');
       }
     } catch (error) {
       setExecutionResult({ status: 'Error', message: 'Execution failed.' });
-      await api.post('/api/sparring/submit', { roomId, userId: user?.id, status: 'Error', message: 'Error' });
+      if (socketRef.current) {
+        socketRef.current.emit('submit-sync', { roomId, userId: user?.id, status: 'Error', message: 'Error' });
+      }
     }
   };
 
@@ -194,14 +239,20 @@ const SparringArena = () => {
             {window.location.href}
           </div>
           <button 
-            onClick={async () => {
-              // Mock join for testing alone if needed
-              await api.post('/api/sparring/join', { roomId, userId: user?.id || 'mock', username: user?.user_metadata?.username || 'Guest' });
+            onClick={() => {
+              // Dev shortcut to forcefully start match without a second player connecting
+              setIsOpponentPresent(true);
               setMatchStatus('active');
             }}
-            className="mt-6 px-4 py-2 text-sm text-gray-500 hover:text-gray-300"
+            className="mt-6 px-4 py-2 text-sm text-gray-500 hover:text-gray-300 mr-2"
           >
             [Dev: Force Start Match]
+          </button>
+          <button 
+            onClick={() => navigate('/')}
+            className="mt-6 px-4 py-2 text-sm text-red-400 hover:text-red-300"
+          >
+            Exit Lobby
           </button>
         </div>
       </div>
@@ -222,9 +273,15 @@ const SparringArena = () => {
             </span>
             <span className="font-bold text-red-500 uppercase tracking-wider text-sm">Live Match</span>
           </div>
-          <div className="font-mono text-2xl font-bold text-white tracking-widest">
+          <div className="font-mono text-2xl font-bold text-white tracking-widest flex-1 text-center">
             {formatTime(timeLeft)}
           </div>
+          <button 
+            onClick={() => navigate('/')}
+            className="px-4 py-1.5 bg-red-900/50 hover:bg-red-800/80 text-red-300 font-bold rounded border border-red-800 transition-colors text-sm"
+          >
+            Exit Match
+          </button>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
@@ -287,7 +344,17 @@ const SparringArena = () => {
 
         {/* Editor Toolbar */}
         <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-          <span className="text-gray-400 text-sm font-medium">JavaScript</span>
+          <select 
+            value={language} 
+            onChange={handleLanguageChange}
+            disabled={matchStatus !== 'active'}
+            className="bg-gray-700 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value="javascript">JavaScript (Node.js)</option>
+            <option value="python">Python 3</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+          </select>
           
           <button 
             onClick={handleSubmit}
@@ -302,7 +369,7 @@ const SparringArena = () => {
         <div className="flex-1 relative">
           <Editor
             height="100%"
-            language="javascript"
+            language={language === 'cpp' ? 'cpp' : language}
             theme="vs-dark"
             value={sourceCode}
             onChange={handleCodeChange}
