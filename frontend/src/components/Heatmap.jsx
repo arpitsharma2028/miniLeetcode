@@ -51,7 +51,7 @@ const Heatmap = ({ data }) => {
     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg mt-8">
       <h3 className="text-xl font-bold text-white mb-4">Contribution Heatmap</h3>
       
-      <div className="overflow-x-auto pb-4">
+      <div className="overflow-x-auto pb-4 pt-8">
         <div 
           className="grid gap-1"
           style={{
@@ -67,10 +67,10 @@ const Heatmap = ({ data }) => {
             return (
               <div 
                 key={day.date}
-                className={`w-4 h-4 rounded-sm cursor-pointer hover:ring-2 hover:ring-white transition-all ${bgClass} group relative`}
+                className={`w-4 h-4 rounded-sm cursor-pointer hover:opacity-75 transition-opacity ${bgClass} group relative`}
               >
                 {/* Custom Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
                   <div className="bg-gray-900 text-gray-200 text-xs py-1 px-2 rounded whitespace-nowrap border border-gray-600 shadow-xl">
                     {tooltipText}
                   </div>
