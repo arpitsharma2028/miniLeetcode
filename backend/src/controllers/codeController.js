@@ -349,8 +349,15 @@ CRITICAL RULES:
 2. Point out a specific logic flaw or edge case they missed, or suggest a data structure.
 3. Keep it under 3 sentences. Be extremely concise and helpful.`;
 
-    const aiResult = await model.generateContent(prompt);
-    const newHint = aiResult.response.text();
+    let newHint;
+    try {
+      const aiResult = await model.generateContent(prompt);
+      newHint = aiResult.response.text();
+    } catch (apiError) {
+      console.warn("Google API failed, using fallback hint:", apiError.message);
+      // Fallback hint based on question difficulty or general logic
+      newHint = "AI API is temporarily unavailable for your region/key. Here is a general hint: Try breaking down the problem by writing out 2 or 3 simple test cases on paper, and see if a loop or hash map can simplify the logic!";
+    }
 
     // 4. Track hints used in question_sessions
     const { data: session } = await supabase
