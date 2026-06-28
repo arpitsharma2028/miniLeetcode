@@ -1,6 +1,6 @@
 # 🚀 MiniLeetcode
 
-**[🔥 Play the Live Demo Here!](https://minileetcode-1.onrender.com/)**
+**[Live Demo](https://minileetcode-1.onrender.com/)**
 
 A highly gamified, free competitive programming platform. Master algorithms, challenge friends in real-time Sparring matches, and get unstuck with an AI Mentor!
 
