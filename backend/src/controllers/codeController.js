@@ -230,7 +230,7 @@ exports.submitCode = async (req, res) => {
             }
 
             const basePoints = POINTS_MAP[question.difficulty] || 10;
-            
+
             // Apply Custom Logic for Visual Reward / Penalties based on Hints
             let multiplier = 1.0;
             if (hintsUsed === 0) {
@@ -293,7 +293,7 @@ exports.submitCode = async (req, res) => {
 exports.generateHint = async (req, res) => {
   try {
     const { userId, questionId, sourceCode } = req.body;
-    
+
     if (!userId || !questionId) {
       return res.status(400).json({ error: 'userId and questionId are required' });
     }
@@ -359,14 +359,14 @@ CRITICAL RULES:
       .eq('user_id', userId)
       .eq('question_id', questionId)
       .single();
-      
+
     const currentHintsUsed = session ? session.hints_used : 0;
     const newHintsUsed = currentHintsUsed + 1;
 
     if (session) {
-       await supabase.from('question_sessions').update({ hints_used: newHintsUsed }).eq('user_id', userId).eq('question_id', questionId);
+      await supabase.from('question_sessions').update({ hints_used: newHintsUsed }).eq('user_id', userId).eq('question_id', questionId);
     } else {
-       await supabase.from('question_sessions').insert({ user_id: userId, question_id: questionId, hints_used: 1 });
+      await supabase.from('question_sessions').insert({ user_id: userId, question_id: questionId, hints_used: 1 });
     }
 
     res.status(200).json({
