@@ -21,7 +21,7 @@ const Navbar = () => {
           <div className="flex space-x-6 items-center">
             {user ? (
               <>
-                <Link to="/problem/1" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/problems" className="text-gray-300 hover:text-white transition-colors">
                   Practice
                 </Link>
                 <Link to={`/profile/${user.user_metadata?.username || 'me'}`} className="text-gray-300 hover:text-white transition-colors">

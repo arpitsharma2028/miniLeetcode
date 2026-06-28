@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Problem from './pages/Problem';
+import Problems from './pages/Problems';
 import SparringArena from './pages/SparringArena';
 import { useServerHeartbeat } from './hooks/useServerHeartbeat';
 import { AuthProvider } from './context/AuthContext';
@@ -20,6 +21,14 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route 
+            path="/problems" 
+            element={
+              <ProtectedRoute>
+                <Problems />
+              </ProtectedRoute>
+            } 
+          />
           <Route 
             path="/profile/:username" 
             element={
