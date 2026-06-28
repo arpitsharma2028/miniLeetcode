@@ -100,7 +100,7 @@ exports.submitCode = async (req, res) => {
       .select('hints_used')
       .eq('user_id', userId)
       .eq('question_id', questionId)
-      .single();
+      .maybeSingle();
 
     const hintsUsed = session ? session.hints_used : 0;
 
@@ -358,7 +358,7 @@ CRITICAL RULES:
       .select('hints_used')
       .eq('user_id', userId)
       .eq('question_id', questionId)
-      .single();
+      .maybeSingle();
 
     const currentHintsUsed = session ? session.hints_used : 0;
     const newHintsUsed = currentHintsUsed + 1;
