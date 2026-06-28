@@ -14,8 +14,11 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
-            <Link to="/" className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 hover:scale-105 transition-transform duration-200">
-              MiniLeetcode
+            <Link to="/" className="flex items-center space-x-2 text-xl font-bold hover:scale-105 transition-transform duration-200">
+              <img src="/app icon.jpeg" alt="Smart Leetcode Logo" className="h-8 w-8 rounded-md object-cover" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">
+                Smart Leetcode
+              </span>
             </Link>
           </div>
           <div className="flex space-x-6 items-center">
