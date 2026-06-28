@@ -73,9 +73,11 @@ exports.getHeatmap = async (req, res) => {
     submissions.forEach(sub => {
       const date = new Date(sub.submitted_at).toISOString().split('T')[0];
       if (!grouped[date]) {
-        grouped[date] = { hasAccepted: false, minHintsAccepted: Infinity, hasAttempt: true };
+        grouped[date] = { hasAccepted: false, minHintsAccepted: Infinity, hasAttempt: true, totalSubmissions: 0 };
       }
       
+      grouped[date].totalSubmissions += 1;
+
       if (sub.status === 'Accepted') {
         grouped[date].hasAccepted = true;
         if (sub.hints_used < grouped[date].minHintsAccepted) {
@@ -96,7 +98,7 @@ exports.getHeatmap = async (req, res) => {
         else color = 'red'; // >= 4 hints
       }
 
-      return { date, color };
+      return { date, color, totalSubmissions: dayData.totalSubmissions };
     });
 
     res.status(200).json(heatmap);

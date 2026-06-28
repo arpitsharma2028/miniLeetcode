@@ -7,12 +7,17 @@ const COLOR_MAP = {
   'red': 'bg-red-500',
 };
 
-const getTooltipText = (color) => {
-  if (color === 'green') return 'Flawless (0 hints)';
-  if (color === 'greenish-yellow') return 'Accepted (1 hint)';
-  if (color === 'yellow') return 'Accepted (2-3 hints)';
-  if (color === 'red') return 'Struggled (4+ hints or not accepted)';
-  return 'No activity';
+const getTooltipText = (color, totalSubmissions) => {
+  const count = totalSubmissions || 0;
+  const submissionsText = `${count} submission${count !== 1 ? 's' : ''}`;
+  let statusText = 'No activity';
+  
+  if (color === 'green') statusText = 'Flawless (0 hints)';
+  else if (color === 'greenish-yellow') statusText = 'Accepted (1 hint)';
+  else if (color === 'yellow') statusText = 'Accepted (2-3 hints)';
+  else if (color === 'red') statusText = 'Struggled (4+ hints or not accepted)';
+
+  return count > 0 ? `${statusText} • ${submissionsText}` : statusText;
 };
 
 const Heatmap = ({ data }) => {
@@ -20,7 +25,7 @@ const Heatmap = ({ data }) => {
   const days = useMemo(() => {
     const dataMap = new Map();
     if (data) {
-      data.forEach(item => dataMap.set(item.date, item.color));
+      data.forEach(item => dataMap.set(item.date, item));
     }
 
     const today = new Date();
@@ -32,9 +37,11 @@ const Heatmap = ({ data }) => {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       
+      const dayData = dataMap.get(dateStr);
       result.push({
         date: dateStr,
-        color: dataMap.get(dateStr) || null
+        color: dayData?.color || null,
+        totalSubmissions: dayData?.totalSubmissions || 0
       });
     }
     return result;
@@ -55,7 +62,7 @@ const Heatmap = ({ data }) => {
         >
           {days.map((day, idx) => {
             const bgClass = day.color ? COLOR_MAP[day.color] : 'bg-gray-700';
-            const tooltipText = `${day.date}: ${getTooltipText(day.color)}`;
+            const tooltipText = `${day.date}: ${getTooltipText(day.color, day.totalSubmissions)}`;
             
             return (
               <div 
