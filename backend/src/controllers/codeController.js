@@ -230,7 +230,25 @@ exports.submitCode = async (req, res) => {
             }
 
             const basePoints = POINTS_MAP[question.difficulty] || 10;
-            pointsEarned = Math.max(0, (basePoints * newStreak) - (hintsUsed * HINT_PENALTY));
+            
+            // Apply Custom Logic for Visual Reward / Penalties based on Hints
+            let multiplier = 1.0;
+            if (hintsUsed === 0) {
+              // Flawless - Maintains streak, full multiplier
+              multiplier = 1.0;
+            } else if (hintsUsed === 1) {
+              // Slightly breaks clean status, reduces multiplier
+              multiplier = 0.8;
+            } else if (hintsUsed >= 2 && hintsUsed <= 3) {
+              // Heavy point penalty
+              multiplier = 0.5;
+            } else if (hintsUsed >= 4) {
+              // Breaks the streak entirely!
+              newStreak = 0;
+              multiplier = 0;
+            }
+
+            pointsEarned = Math.max(0, Math.floor(basePoints * newStreak * multiplier));
 
             const newTotalScore = userStats.total_score + pointsEarned;
 

@@ -10,8 +10,8 @@ const COLOR_MAP = {
 const getTooltipText = (color) => {
   if (color === 'green') return 'Flawless (0 hints)';
   if (color === 'greenish-yellow') return 'Accepted (1 hint)';
-  if (color === 'yellow') return 'Accepted (2 hints)';
-  if (color === 'red') return 'Struggled (4+ hints or failed)';
+  if (color === 'yellow') return 'Accepted (2-3 hints)';
+  if (color === 'red') return 'Struggled (4+ hints or not accepted)';
   return 'No activity';
 };
 

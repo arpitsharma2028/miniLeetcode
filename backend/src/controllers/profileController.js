@@ -92,8 +92,8 @@ exports.getHeatmap = async (req, res) => {
       if (dayData.hasAccepted) {
         if (dayData.minHintsAccepted === 0) color = 'green';
         else if (dayData.minHintsAccepted === 1) color = 'greenish-yellow';
-        else if (dayData.minHintsAccepted === 2) color = 'yellow';
-        else color = 'red'; // >= 3 or 4 hints
+        else if (dayData.minHintsAccepted === 2 || dayData.minHintsAccepted === 3) color = 'yellow';
+        else color = 'red'; // >= 4 hints
       }
 
       return { date, color };

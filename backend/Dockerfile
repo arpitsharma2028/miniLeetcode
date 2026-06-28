@@ -4,6 +4,9 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
+# Install Python and g++ for local code execution support
+RUN apk add --no-cache python3 g++ build-base
+
 # Copy package.json and package-lock.json first to leverage Docker cache
 COPY package*.json ./
 
