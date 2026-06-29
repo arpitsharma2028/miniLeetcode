@@ -17,7 +17,7 @@ const defaultRubric = [
   { id: '5', text: 'Code is clean and readable', checked: false }
 ];
 
-const InterviewerPanel = ({ socket, roomId, initialQuestion }) => {
+const InterviewerPanel = ({ socket, roomId, initialQuestion, players }) => {
   const [candidateCode, setCandidateCode] = useState('// Waiting for candidate to start typing...');
   const [language, setLanguage] = useState('javascript');
   const [rubric, setRubric] = useState(defaultRubric);
@@ -83,7 +83,25 @@ const InterviewerPanel = ({ socket, roomId, initialQuestion }) => {
     ));
   };
 
-  const handleEndSession = (status) => {
+  const handleEndSession = async (status) => {
+    try {
+      const hostUser = players?.find(p => p.role === 'Host');
+      const guestUser = players?.find(p => p.role === 'Guest');
+
+      await api.post('/api/interviews/save', {
+        room_id: roomId,
+        host_username: hostUser?.username || 'Unknown',
+        guest_username: guestUser?.username || 'Unknown',
+        question_title: activeQuestion?.title || 'Unknown',
+        status,
+        feedback: notes,
+        rubric
+      });
+    } catch (err) {
+      console.error('Failed to save interview session to database', err);
+      alert('Failed to save interview session to database, but ending session anyway.');
+    }
+
     socket.emit('end-session', {
       roomId,
       finalRubric: rubric,

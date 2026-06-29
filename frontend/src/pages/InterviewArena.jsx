@@ -15,6 +15,7 @@ const InterviewArena = () => {
   const [sessionState, setSessionState] = useState('lobby'); // 'lobby', 'active', 'ended'
   
   const [initialQuestion, setInitialQuestion] = useState(null);
+  const [players, setPlayers] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [socket, setSocket] = useState(null);
 
@@ -47,6 +48,9 @@ const InterviewArena = () => {
       if (data?.currentQuestion) {
         setInitialQuestion(data.currentQuestion);
       }
+      if (data?.players) {
+        setPlayers(data.players);
+      }
       setSessionState('active');
     });
 
@@ -62,6 +66,14 @@ const InterviewArena = () => {
     };
   }, [roomId, user?.id]);
 
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (sessionState === 'lobby') {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-gray-900 text-white p-4">
@@ -74,9 +86,19 @@ const InterviewArena = () => {
             {role === 'Host' ? 'Waiting for Candidate to join...' : 'Waiting for Interviewer...'}
           </h3>
           <p className="text-gray-400 mb-6 text-sm">Share this link to invite the other party:</p>
-          <div className="p-3 bg-gray-900 rounded border border-gray-600 font-mono text-sm break-all text-blue-400">
-            {window.location.href}
+          
+          <div className="flex items-center space-x-2 mb-6">
+            <div className="flex-1 p-3 bg-gray-900 rounded border border-gray-600 font-mono text-sm break-all text-blue-400 text-left">
+              {window.location.href}
+            </div>
+            <button 
+              onClick={handleCopy}
+              className="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-colors whitespace-nowrap"
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
           </div>
+          
           <button 
             onClick={() => setSessionState('active')} // Dev bypass
             className="mt-6 px-4 py-2 text-sm text-gray-500 hover:text-gray-300 mr-2"
@@ -102,7 +124,7 @@ const InterviewArena = () => {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col bg-gray-900 text-white font-sans overflow-hidden">
       {role === 'Host' ? (
-        <InterviewerPanel socket={socket} roomId={roomId} initialQuestion={initialQuestion} />
+        <InterviewerPanel socket={socket} roomId={roomId} initialQuestion={initialQuestion} players={players} />
       ) : (
         <CandidateWorkspace socket={socket} roomId={roomId} initialQuestion={initialQuestion} />
       )}
