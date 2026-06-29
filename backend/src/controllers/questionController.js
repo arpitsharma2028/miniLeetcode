@@ -4,7 +4,7 @@ exports.getQuestions = async (req, res) => {
   try {
     const { topic_id, difficulty } = req.query;
     
-    let query = supabase.from('questions').select('id, title, topic_id, difficulty, description');
+    let query = supabase.from('questions').select('id, title, topic_id, difficulty, description, test_cases, starter_code, cheatsheet');
     
     if (topic_id) {
       query = query.eq('topic_id', topic_id);
