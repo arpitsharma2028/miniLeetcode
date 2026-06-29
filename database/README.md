@@ -171,3 +171,5 @@ Active session tracking for AI Hints.
 - `idx_submissions_user_date` on `submissions(user_id, submitted_at)`
 - `idx_questions_topic_difficulty` on `questions(topic_id, difficulty)`
 - `idx_users_username` on `users(username)`
+
+
